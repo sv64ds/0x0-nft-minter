@@ -1,64 +1,99 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Image from 'next/image'
 import styles from '@/styles/Home.module.css'
-import {ethers} from 'ethers';
+import {ethers, Contract} from 'ethers';
 import ABI from '../contracts/contractABI.json';
+import Web3Modal from 'web3modal';
+import { render } from 'react-dom';
 
 const NFTContractAddress = "0x494d20908C3DD605221CE6c2211c4320725CF7d4";
 
 export default function Home() {
-  const [amount, setAmount] = useState(0);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [connected, setConnected] = useState(false);
+  const [nfts, setNfts] = useState(0);
+  const [walletConnected, setWalletConnected] = useState(false);
   
-  useEffect(() => {
-    setConnected(window.ethereum.selectedAddress)
-  }, [])
+  const web3ModalRef = useRef();
   
+  const getProviderOrSigner = async (needSigner = false) => {
+    const provider = await web3ModalRef.current.connect();
+    const web3Provider = new ethers.providers.Web3Provider(provider);
+    const {chainId} = await web3Provider.getNetwork();
+    
+    if(chainId !== 97) {
+      window.alert('Change network to BNB Testnet');
+    }
+    
+    if(needSigner) {
+      const signer = web3Provider.getSigner();
+      return signer;
+    }
+    
+    return web3Provider;
+  }
   
-  
-  const connectAccount = async () => {
-    if(window !== undefined) {
-      const accounts = await window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
-      if (accounts.length === 0) {
-        alert("Aborted");
-      } else {
-        setConnected(true);
-      }
+  const mintNFT = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const nftContract = new ethers.Contract(NFTContractAddress, ABI, signer);
+      
+      const amountToSend = ethers.utils.parseEther('0.001'); // 1 Ether
+      
+      const tx = await nftContract.mint({value: amountToSend});
+      alert("Success! Please wait for transaction to be processed");
+      await tx.wait();
+    } catch (error) {
+      alert("Something went wrong :( More details in console.");
+      console.error(error.reason);
     }
   };
   
-  if (!connected) {
-    return <button onClick={connectAccount}>Connect Metamask</button>;
+  const getNFTs = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const nftContract = new ethers.Contract(NFTContractAddress, ABI, signer);
+      
+      const nftBalance = await nftContract.balanceOf(await signer.getAddress());
+      setNfts(Number(nftBalance));
+    } catch (error) {
+      alert("Something went wrong :( More details in console.");
+      console.error(error.reason);
+    }
   }
   
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  const signer = provider.getSigner();
-  const airdropTokenContract = new ethers.Contract(
-    NFTContractAddress,
-    ABI,
-    signer
-    );
-    console.log(airdropTokenContract);
+  const connectWallet = async () => {
+    try {
+      await getProviderOrSigner();
+      setWalletConnected(true);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  
+  useEffect(() => {
+    if(!walletConnected) {
+      web3ModalRef.current = new Web3Modal({
+        network: 97,
+        providerOptions: {},
+        disableInjectedProvider: false,
+      });
+      connectWallet();
+    } else {
+      getNFTs();
+    }
     
-    const mintNFT = async () => {
-      try {
-        
-        const amountToSend = ethers.utils.parseEther('0.001'); // 1 Ether
-        const opts = {
-          value: amountToSend,
-        };
-        const tx = await airdropTokenContract.mint(opts);
-        alert("Success! Please wait for transaction to be processed");
-        await tx.wait();
-      } catch (error) {
-        alert("Something went wrong :( More details below.");
-        setErrorMessage(error.message);
+
+  }, [walletConnected])
+  
+  const renderButton = () => {
+    if(walletConnected) {
+      return (
+        <div>
+          <button className={styles.btn} onClick={mintNFT}>Mint</button>
+        </div>
+        )
       }
-    };
+    }
     
     return (
       <>
@@ -70,11 +105,21 @@ export default function Home() {
       </Head>
       <main className={styles.main}>
       <div className={styles.description}>
-      ku
-      <button onClick={mintNFT}>mint</button>
-      </div>
-      </main>
-      </>
-      )
-    }
-    
+      {walletConnected ? (
+        <div>You have {nfts} NFTs.</div>
+        ) : (
+          <button className={styles.btn} onClick={connectWallet}>
+          Connect wallet
+          </button>
+          )}
+          
+          
+          {renderButton()} 
+          
+          
+          </div>
+          </main>
+          </>
+          )
+        }
+        
