@@ -2,16 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Image from 'next/image'
 import styles from '@/styles/Home.module.css'
-import {ethers, Contract} from 'ethers';
+import {ethers} from 'ethers';
 import ABI from '../contracts/contractABI.json';
 import Web3Modal from 'web3modal';
-import { render } from 'react-dom';
 
-const NFTContractAddress = "0x494d20908C3DD605221CE6c2211c4320725CF7d4";
+const NFTContractAddress = "0x1cE2eBD876Ae2C72bf4e5384F12eb2cff3c96636";
 
 export default function Home() {
   const [nfts, setNfts] = useState(0);
   const [walletConnected, setWalletConnected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const web3ModalRef = useRef();
   
@@ -34,6 +34,7 @@ export default function Home() {
   
   const mintNFT = async () => {
     try {
+      setErrorMessage('')
       const signer = await getProviderOrSigner(true);
       const nftContract = new ethers.Contract(NFTContractAddress, ABI, signer);
       
@@ -43,21 +44,20 @@ export default function Home() {
       alert("Success! Please wait for transaction to be processed");
       await tx.wait();
     } catch (error) {
-      alert("Something went wrong :( More details in console.");
-      console.error(error.reason);
+      setErrorMessage(error.reason)
     }
   };
   
   const getNFTs = async () => {
     try {
+      setErrorMessage('')
       const signer = await getProviderOrSigner(true);
       const nftContract = new ethers.Contract(NFTContractAddress, ABI, signer);
       
       const nftBalance = await nftContract.balanceOf(await signer.getAddress());
       setNfts(Number(nftBalance));
     } catch (error) {
-      alert("Something went wrong :( More details in console.");
-      console.error(error.reason);
+      setErrorMessage(error.reason)
     }
   }
   
@@ -115,6 +115,8 @@ export default function Home() {
           
           
           {renderButton()} 
+
+          {errorMessage && <p className={styles.errorMsg}>{errorMessage}</p>}
           
           
           </div>

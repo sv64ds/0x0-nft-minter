@@ -36,3 +36,8 @@
   color: black;
   box-shadow: 0 0 10px 1px white;
 }
+.errorMsg {
+  color: red;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
